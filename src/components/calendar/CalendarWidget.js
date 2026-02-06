@@ -55,10 +55,10 @@ export default function CalendarWidget() {
 
     const weekDays = language === "ko"
         ? ['일', '월', '화', '수', '목', '금', '토']
-        : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        : ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
     return (
-        <div className="card-base h-full flex flex-col overflow-hidden">
+        <div className="card-base flex-1 flex flex-col overflow-hidden">
             <div className="flex justify-between items-center mb-4 px-1">
                 <div className="flex flex-col">
                     <span className="text-[10px] uppercase tracking-tighter opacity-40 font-bold">{year}</span>

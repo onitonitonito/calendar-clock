@@ -7,6 +7,7 @@ import WeatherWidget from "@/components/weather/WeatherWidget";
 import AQIWidget from "@/components/weather/AQIWidget";
 import CalendarWidget from "@/components/calendar/CalendarWidget";
 import LanguageToggle from "@/components/common/LanguageToggle";
+import TimeFormatToggle from "@/components/common/TimeFormatToggle";
 import { useWeather } from "@/hooks/useWeather";
 
 export default function Dashboard() {
@@ -45,16 +46,17 @@ export default function Dashboard() {
 
   return (
     <main className="w-full h-full bg-background text-foreground p-8 flex flex-col items-center justify-center overflow-hidden relative">
-      {/* Top Header with Language Toggle */}
-      <div className="absolute top-8 right-8 z-50">
+      {/* Top Header with Toggles */}
+      <div className="absolute top-8 right-8 z-50 flex gap-2">
+        <TimeFormatToggle />
         <LanguageToggle />
       </div>
 
-      <div className="w-full h-full grid grid-cols-12 gap-8">
+      <div className="w-full max-w-[1000px] grid grid-cols-12 gap-8">
         {/* Left Side: Clock & Weather (8 columns) */}
-        <div className="col-span-8 flex flex-col gap-8">
+        <div className="col-span-8 flex flex-col gap-6">
           {/* Flip Clock Area */}
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center justify-center py-4">
             <FlipClock />
           </div>
 
