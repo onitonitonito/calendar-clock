@@ -43,7 +43,23 @@ width="350"
 src="./public/images/screenshot-kor.png"/>
 </div>
 
+---
 
+<div style="
+display: flex; 
+gap: 10px; 
+align-items: 
+flex-start;"
+>
+<img 
+alt="플립클럭 스크린샷"
+width="350"
+src="./public/images/screenshot-01-alarm-set.png"/>
+<img 
+alt="플립클럭 스크린샷"
+width="350"
+src="./public/images/screenshot-02-alarm-triggered.png"/>
+</div>
 
 ---
 
@@ -143,9 +159,12 @@ src/
 
 
 
-## 📜 라이선스
+## 📜 라이선스 및 협업
 
-이 프로젝트는 개인 학습 및 커스터마이징을 위해 자유롭게 사용 및 수정이 가능합니다.
+본 프로젝트는 개인적인 연습을 위해 시작되었으나, 앞으로 정식 사이드 프로젝트로 점진적으로 확장해 나갈 계획을 가지고 있습니다.
+
+- **사용 권한**: 개인 학습 및 커스터마이징 목적이라면 누구나 자유롭게 사용하고 수정할 수 있습니다.
+- **협업 제안**: 프로젝트의 완성도를 높이는 데 도움을 주시거나, 새로운 아이디어를 가지고 함께 개발에 참여하고 싶은 분들의 연락을 기다립니다. 코드 기여 및 협업에 관심이 있으신 분은 **Issue**나 **Pull Request**를 통해 참여 메시지를 남겨주세요! 🚀
 
 ---
 
