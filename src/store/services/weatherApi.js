@@ -1,7 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-// For demo purposes, we use a mock. Real implementation would use process.env.NEXT_PUBLIC_WEATHER_API_KEY
-const WEATHER_API_KEY = "your_openweathermap_api_key_here";
+const WEATHER_API_KEY = process.env.NEXT_PUBLIC_WEATHER_API_KEY;
 
 export const weatherApi = createApi({
     reducerPath: "weatherApi",

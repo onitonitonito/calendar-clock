@@ -1,8 +1,18 @@
-# 🕒 WebDeskClock (웹 데스크 클락)
+# 🕒[PWA] 웹데스크클럭-플립클럭
 
-**WebDeskClock**은 사용자의 데스크테리어(Deskterior)를 완성해주는 프리미엄 웹 기반 데스크 시계 및 일정 관리 대시보드입니다. 모던한 디자인, 실시간 정보 제공, 그리고 편리한 접근성을 한데 담았습니다.
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black) ![Redux](https://img.shields.io/badge/Redux-764ABC?style=for-the-badge&logo=redux&logoColor=white) ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white) ![PWA](https://img.shields.io/badge/PWA-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white) ![Language](https://img.shields.io/badge/Language-KO%20%2F%20EN-blue?style=for-the-badge)
+
+**WebDeskClock**은 단순한 시계를 넘어, 작업 공간의 품격을 높여주는 **프리미엄 올인원 데스크 대시보드**입니다.
+
+모던하고 세련된 **글래스모피즘(Glassmorphism) 디자인**을 바탕으로 제작되었으며, 실시간 시간, 날씨, 대기질, 그리고 구글 캘린더 일정을 한눈에 파악할 수 있는 최상의 시각적 경험을 제공합니다. 보조 모니터나 태블릿을 활용하여 데스크테리어(Deskterior)를 완성하고 싶은 사용자들을 위해 최적화되었습니다.
+
+- **데스크테리어의 완성**: 미니멀한 다크 모드와 부드러운 애니메이션이 조화를 이루는 프리미엄 디자인.
+- **지능형 정보 허브**: 현재 위치 기반의 실시간 기상 상태와 미세먼지 수치를 직관적으로 제공.
+- **원활한 연동성**: 구글 캘린더 동기화를 통해 업무와 일상의 스케줄을 실시간으로 확인.
+- **혁신적인 PWA 경험**: 브라우저의 군더더기를 제거한 풀스크린 모드와 자유로운 창 이동(Drag-to-move) 기능 지원.
 
 ---
+
 
 
 ## ✨ 핵심 기능
@@ -61,10 +71,29 @@ cd calendar-clock
 npm install
 ```
 
-### 2. 환경 변수 설정
-`.env.local` 파일을 생성하고 필요한 API 키를 설정합니다 (Weather API, Google OAuth 등).
+### 2. 날씨 API 설정 (OpenWeatherMap)
+날씨 및 대기질 정보를 표시하기 위해 OpenWeatherMap API 키가 필요합니다.
 
-### 3. 개발 서버 실행
+1.  **계정 생성**: [OpenWeatherMap 공식 사이트](https://openweathermap.org/)에 접속하여 가입합니다.
+2.  **이메일 인증**: 가입 후 등록한 이메일로 발송된 확인 메일을 반드시 인증해야 API 키가 활성화됩니다.
+3.  **API 키 확인**: 로그인 후 [API keys](https://home.openweathermap.org/api_keys) 탭에서 발급된 `Default` 키를 복사합니다.
+4.  **활성화 대기**: 새 API 키는 활성화까지 **최소 30분에서 최대 2시간**이 소요될 수 있습니다. (즉시 작동하지 않을 경우 기다려 주세요.)
+
+### 3. 환경 변수 설정
+프로젝트 루트 디렉토리에 `.env.local` 파일을 생성하고 아래와 같이 키를 입력합니다.
+
+```env
+# 날씨 API 설정 (NEXT_PUBLIC_ 접두사 필수)
+NEXT_PUBLIC_WEATHER_API_KEY=복사한_API_키_입력
+
+# NextAuth 설정 (구글 캘린더 연동 시 필요)
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=임의의_문자열
+GOOGLE_CLIENT_ID=구글_클라이언트_ID
+GOOGLE_CLIENT_SECRET=구글_클라이언트_시크릿
+```
+
+### 4. 개발 서버 실행
 ```bash
 npm run dev
 ```
@@ -125,11 +154,8 @@ src/
 ## 📝 릴리즈 노트 (Release Notes)
 
 ### **v1.1.0 (2026-02-06)**
-- **하이드레이션 오류 해결**: 서버와 클라이언트 간의 날짜/시간 불일치로 인한 *Hydration Failed* 오류를 `mounted` 상태 관리를 통해 완벽히 해결했습니다.
-- **다국어 지원 시스템 도입**: 한국어와 영어 간의 실시간 전환 기능을 추가했습니다. (Redux 전역 상태 관리 및 `LanguageToggle` 컴포넌트 추가)
-- **캘린더 UI 최적화**: 날짜 그리드의 수직 간격을 줄여 더욱 콤팩트한 레이아웃을 구현하고, 일정 연동 버튼의 위치를 상단으로 조정했습니다.
-- **PWA 사용자 경험 개선**:
-  - `display: fullscreen` 설정을 통해 브라우저 헤더를 완전히 제거했습니다.
-  - `-webkit-app-region: drag` 설정을 추가하여 프레임리스 창 모드에서도 본문의 빈 공간을 드래그하여 창을 자유롭게 이동할 수 있도록 개선했습니다.
-- **기타 수정**: 요일 계산 로직 수정 및 전체적인 UI 텍스트 번역 완성도를 높였습니다.
+- **다국어 및 PWA 강화**: 한국어/영어 실시간 전환 및 윈도우 드래그 이동 기능 추가.
+- **UI/UX 최적화**: 1263x1011 고정 해상도 및 콤팩트한 캘린더 레이아웃 적용.
+- **안정성 및 보안**: 하이드레이션 오류 해결 및 API 키 환경 변수 통합 관리.
+- **문서화 보강**: 날씨 API 설정 및 PWA 설치 가이드 상세 업데이트.
 
