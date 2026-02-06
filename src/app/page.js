@@ -8,6 +8,7 @@ import AQIWidget from "@/components/weather/AQIWidget";
 import CalendarWidget from "@/components/calendar/CalendarWidget";
 import LanguageToggle from "@/components/common/LanguageToggle";
 import TimeFormatToggle from "@/components/common/TimeFormatToggle";
+import AlarmSetting from "@/components/clock/AlarmSetting";
 import { useWeather } from "@/hooks/useWeather";
 
 export default function Dashboard() {
@@ -48,6 +49,7 @@ export default function Dashboard() {
     <main className="w-full h-full bg-background text-foreground p-8 flex flex-col items-center justify-center overflow-hidden relative">
       {/* Top Header with Toggles */}
       <div className="absolute top-8 right-8 z-50 flex gap-2">
+        <AlarmSetting />
         <TimeFormatToggle />
         <LanguageToggle />
       </div>
@@ -71,12 +73,12 @@ export default function Dashboard() {
         <div className="col-span-4 flex flex-col gap-8">
           <CalendarWidget />
 
-          <div className="h-[140px] card-base flex flex-col justify-center">
-            <div className="text-[11px] uppercase tracking-widest opacity-40 mb-1 font-bold">
+          <div className="h-[140px] card-base flex flex-col justify-center px-6">
+            <div className="text-[11px] uppercase tracking-widest opacity-40 font-bold">
               {language === "ko" ? "오늘" : "TODAY"}
             </div>
-            <div className="text-2xl font-black">{dateString}</div>
-            <div className="text-xs opacity-40 mt-1 uppercase font-bold tracking-wider">{dayOfWeek}</div>
+            <div className="text-4xl font-black my-0.5 tracking-tighter">{dateString}</div>
+            <div className="text-sm opacity-40 uppercase font-bold tracking-wider">{dayOfWeek}</div>
           </div>
         </div>
       </div>
