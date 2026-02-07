@@ -70,7 +70,7 @@ export default function FlipClock() {
                     {alarmTime && (
                         <div className={`flex flex-col gap-1 mb-2 ${isAlarmActive ? "animate-pulse" : ""}`}>
                             {/* Alarm Set Time */}
-                            <div className="text-[10px] font-black text-amber-500 tracking-tighter bg-amber-500/10 px-1 py-0.5 rounded-md border border-amber-500/20 text-center">
+                            <div className="text-[12px] font-black text-amber-500 tracking-tighter bg-amber-500/10 px-1 py-0.5 rounded-md border border-amber-500/20 text-center">
                                 SET: {new Date(alarmTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).replace("AM", "").replace("PM", "").trim()}
                             </div>
                             {/* Current Time (Only during Alarm) */}
