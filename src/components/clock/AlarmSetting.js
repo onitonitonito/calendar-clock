@@ -31,6 +31,22 @@ export default function AlarmSetting() {
         return () => clearInterval(interval);
     }, [isOpen, alarmTime]);
 
+    // 모달이 열릴 때 현재 시간을 기본값으로 설정
+    useEffect(() => {
+        if (isOpen) {
+            const now = new Date();
+            let hours = now.getHours();
+            const ampm = hours >= 12 ? "PM" : "AM";
+            hours = hours % 12;
+            hours = hours ? hours : 12; // 0시는 12시로 표시
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+
+            setManualHour(hours.toString());
+            setManualMin(minutes);
+            setManualAmPm(ampm);
+        }
+    }, [isOpen]);
+
     const handleManualSet = () => {
         if (manualHour === "" || manualMin === "") return;
 
@@ -109,7 +125,7 @@ export default function AlarmSetting() {
                                     }}
                                     className="py-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-[10px] font-black"
                                 >
-                                    +{m}m
+                                    {language === "ko" ? `+${m}분` : `+${m} min`}
                                 </button>
                             ))}
                         </div>

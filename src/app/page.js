@@ -64,7 +64,7 @@ export default function Dashboard() {
 
           {/* Bottom Area: Weather & AQI */}
           <div className="grid grid-cols-2 gap-6 h-[200px]">
-            <WeatherWidget data={weather} isLoading={isLoading} />
+            <WeatherWidget data={weather} aqiData={aqi} isLoading={isLoading} />
             <AQIWidget data={aqi} isLoading={isLoading} />
           </div>
         </div>

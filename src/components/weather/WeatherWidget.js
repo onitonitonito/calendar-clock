@@ -2,8 +2,9 @@
 
 import { Cloud, Sun, CloudRain, Wind } from "lucide-react";
 import { useSelector } from "react-redux";
+import { motion } from "framer-motion";
 
-export default function WeatherWidget({ data, isLoading }) {
+export default function WeatherWidget({ data, aqiData, isLoading }) {
     const language = useSelector((state) => state.ui.language);
     if (isLoading || !data) {
         return (
@@ -36,11 +37,13 @@ export default function WeatherWidget({ data, isLoading }) {
                 {getIcon()}
             </div>
 
-            <div>
-                <div className="text-5xl font-black mb-1">{temp}°C</div>
-                <div className="flex flex-col">
-                    <span className="text-sm font-medium">{weather[0].description}</span>
-                    <span className="text-[10px] opacity-40 uppercase tracking-tighter">{name}</span>
+            <div className="flex justify-between items-end">
+                <div>
+                    <div className="text-5xl font-black mb-1">{temp}°C</div>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">{weather[0].description}</span>
+                        <span className="text-[10px] opacity-40 uppercase tracking-tighter">{name}</span>
+                    </div>
                 </div>
             </div>
 
