@@ -18,15 +18,35 @@ export default function AQIWidget({ data, isLoading }) {
     const pm25 = Math.round(components.pm2_5);
     const pm10 = Math.round(components.pm10);
 
-    // PM 농도에 따른 전체 상태 (WHO/한국 근사 기준)
-    const getPmAqi = (p25, p10) => {
-        if (p25 <= 15 && p10 <= 30) return 1;
-        if (p25 <= 35 && p10 <= 80) return 2;
-        if (p25 <= 75 && p10 <= 150) return 3;
-        if (p25 <= 100 && p10 <= 200) return 4;
-        return 5;
+    // PM2.5와 O3 농도 조합에 따른 9단계 상태 구분
+    const getAqi9Level = (p25, o3Val) => {
+        const getPmLevel = (v) => {
+            if (v <= 5) return 1;    // 천상
+            if (v <= 10) return 2;   // 최고
+            if (v <= 15) return 3;   // 좋음
+            if (v <= 25) return 4;   // 양호
+            if (v <= 35) return 5;   // 보통
+            if (v <= 55) return 6;   // 나쁨
+            if (v <= 75) return 7;   // 매우나쁨
+            if (v <= 150) return 8;  // 잔혹
+            return 9;                // 지옥
+        };
+        const getO3Level = (v) => {
+            if (v <= 30) return 1;
+            if (v <= 60) return 2;
+            if (v <= 100) return 3;
+            if (v <= 130) return 4;
+            if (v <= 160) return 5;
+            if (v <= 190) return 6;
+            if (v <= 220) return 7;
+            if (v <= 250) return 8;
+            return 9;
+        };
+        return Math.max(getPmLevel(p25), getO3Level(o3Val));
     };
-    const calculatedAqi = getPmAqi(pm25, pm10);
+
+    const o3 = Math.round(components.o3 || 0);
+    const calculatedAqi = getAqi9Level(pm25, o3);
 
     // 시각적 정규화를 위한 공통 최대값
     const visualMax = 180;
@@ -39,32 +59,36 @@ export default function AQIWidget({ data, isLoading }) {
         */
         {
             id: 'pm2_5', label: "PM2.5", val: pm25,
-            scale: 6.0, // 초미세먼지 확대: x16.0
+            scale: 1.2, // 초미세먼지 확대: x16.0
             r: 42, w: 6, color: "#10b981", shadow: "rgba(16,185,129,0.3)"
         },
         {
             id: 'pm10', label: "PM10", val: pm10,
-            scale: 8.0, // 미세먼지 확대: x18.0
+            scale: 1.4, // 미세먼지 확대: x18.0
             r: 34, w: 6, color: "#0ea5e9", shadow: "rgba(14,165,233,0.3)"
         },
         {
             id: 'o3', label: language === "ko" ? "오존" : "O3", val: Math.round(components.o3 || 0),
-            scale: 1.5, // 오존 확대: x1.5
+            scale: 1.0, // 오존 확대: x1.5
             r: 26, w: 6, color: "#8b5cf6", shadow: "rgba(139,92,246,0.3)"
         },
         {
             id: 'no2', label: language === "ko" ? "NO2" : "NO2", val: Math.round(components.no2 || 0),
-            scale: 27.0, // 이산화질소 확대: x17.0
+            scale: 40.0, // 이산화질소 확대: x17.0
             r: 18, w: 6, color: "#ec4899", shadow: "rgba(236,72,153,0.3)"
         },
     ];
 
     const statusMap = {
-        1: { label: language === "ko" ? "최상" : "Excellent", color: "#10b981", bg: "bg-emerald-500/5" },
-        2: { label: language === "ko" ? "좋음" : "Good", color: "#84cc16", bg: "bg-lime-500/5" },
-        3: { label: language === "ko" ? "보통" : "Moderate", color: "#f59e0b", bg: "bg-amber-500/5" },
-        4: { label: language === "ko" ? "나쁨" : "Poor", color: "#f97316", bg: "bg-orange-500/5" },
-        5: { label: language === "ko" ? "위험" : "Hazardous", color: "#ef4444", bg: "bg-rose-500/5" },
+        1: { label: language === "ko" ? "천상" : "Celestial", color: "#d7a5fdff", bg: "bg-emerald-500/5" },
+        2: { label: language === "ko" ? "최고" : "Top", color: "#34d399", bg: "bg-emerald-500/5" },
+        3: { label: language === "ko" ? "좋음" : "Good", color: "#84cc16", bg: "bg-lime-500/5" },
+        4: { label: language === "ko" ? "양호" : "Moderate", color: "#facc15", bg: "bg-yellow-500/5" },
+        5: { label: language === "ko" ? "보통" : "Normally", color: "#f59e0b", bg: "bg-amber-500/5" },
+        6: { label: language === "ko" ? "나쁨" : "Unhealthy", color: "#f97316", bg: "bg-orange-500/5" },
+        7: { label: language === "ko" ? "매우나쁨" : "V.Unhealthy", color: "#ef4444", bg: "bg-rose-500/5" },
+        8: { label: language === "ko" ? "잔혹" : "Hazardous", color: "#dc2626", bg: "bg-red-600/5" },
+        9: { label: language === "ko" ? "지옥" : "Hell", color: "#7f1d1d", bg: "bg-red-900/5" },
     };
 
     const currentStatus = statusMap[calculatedAqi] || statusMap[3];
