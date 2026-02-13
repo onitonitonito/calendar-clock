@@ -18,7 +18,7 @@ export default function AQIWidget({ data, isLoading }) {
     const pm25 = Math.round(components.pm2_5);
     const pm10 = Math.round(components.pm10);
 
-    // Overall status based specifically on PM levels (WHO/Korea approximate standard)
+    // PM 농도에 따른 전체 상태 (WHO/한국 근사 기준)
     const getPmAqi = (p25, p10) => {
         if (p25 <= 15 && p10 <= 30) return 1;
         if (p25 <= 35 && p10 <= 80) return 2;
@@ -33,18 +33,18 @@ export default function AQIWidget({ data, isLoading }) {
 
     const factors = [
         /* 
-           Visual Normalization Logic: 
+           시각적 정규화 로직: 
            성분별 수치 범위가 다르므로, 개별 Scale Factor를 적용하여 
            모든 그래프가 50~95% 사이에서 역동적으로 움직이도록 정규화함. (기준: visualMax 180)
         */
         {
             id: 'pm2_5', label: "PM2.5", val: pm25,
-            scale: 16.0, // 초미세먼지 확대: x16.0
+            scale: 6.0, // 초미세먼지 확대: x16.0
             r: 42, w: 6, color: "#10b981", shadow: "rgba(16,185,129,0.3)"
         },
         {
             id: 'pm10', label: "PM10", val: pm10,
-            scale: 18.0, // 미세먼지 확대: x18.0
+            scale: 8.0, // 미세먼지 확대: x18.0
             r: 34, w: 6, color: "#0ea5e9", shadow: "rgba(14,165,233,0.3)"
         },
         {
@@ -54,7 +54,7 @@ export default function AQIWidget({ data, isLoading }) {
         },
         {
             id: 'no2', label: language === "ko" ? "NO2" : "NO2", val: Math.round(components.no2 || 0),
-            scale: 17.0, // 이산화질소 확대: x17.0
+            scale: 27.0, // 이산화질소 확대: x17.0
             r: 18, w: 6, color: "#ec4899", shadow: "rgba(236,72,153,0.3)"
         },
     ];
@@ -84,7 +84,7 @@ export default function AQIWidget({ data, isLoading }) {
             </div>
 
             <div className="flex-1 flex items-center justify-between gap-4 py-2">
-                {/* 4-Ring SVG with Normalized Scaling */}
+                {/* 정규화된 스케일링이 적용된 4중 링 SVG */}
                 <div className="relative w-[110px] h-[110px] flex-shrink-0">
                     <svg width="110" height="110" viewBox="0 0 100 100" className="transform -rotate-90">
                         {factors.map((f, i) => {
@@ -113,7 +113,7 @@ export default function AQIWidget({ data, isLoading }) {
                     </div>
                 </div>
 
-                {/* Numerical Values List with Scaled Horizontal Bars */}
+                {/* 스케일링된 가로 바가 포함된 수치 리스트 */}
                 <div className="flex-1 grid grid-cols-1 gap-1.5">
                     {factors.map((f, i) => (
                         <div key={f.id} className="flex flex-col">
