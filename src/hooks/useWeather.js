@@ -18,11 +18,11 @@ export function useWeather() {
     }, []);
 
     const now = Math.floor(Date.now() / 1000);
-    const last24h = now - (24 * 60 * 60);
+    const last7d = now - (7 * 24 * 60 * 60);
 
     const { data: weather, isLoading: weatherLoading } = useGetWeatherQuery(coords);
     const { data: aqi, isLoading: aqiLoading } = useGetAirQualityQuery(coords);
-    const { data: aqiHistory, isLoading: historyLoading } = useGetAirQualityHistoryQuery({ ...coords, start: last24h, end: now });
+    const { data: aqiHistory, isLoading: historyLoading } = useGetAirQualityHistoryQuery({ ...coords, start: last7d, end: now });
     const { data: forecast, isLoading: forecastLoading } = useGetForecastQuery(coords);
 
     return {
