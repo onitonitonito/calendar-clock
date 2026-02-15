@@ -1,17 +1,24 @@
 "use client";
+import { createPortal } from "react-dom";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { setLanguage } from "@/store/slices/uiSlice";
 import { motion, AnimatePresence } from "framer-motion";
-import { Languages } from "lucide-react";
+import { Languages, X } from "lucide-react";
 
-export default function AQIWidget({ data, aqiHistory, isLoading }) {
+export default function AQIWidget({ data, aqiHistory, aqiForecast, isLoading }) {
     const dispatch = useDispatch();
     const language = useSelector((state) => state.ui.language);
     const [showIconBoard, setShowIconBoard] = useState(false);
     const [hoveredLevel, setHoveredLevel] = useState(null);
     const [isRingHovered, setIsRingHovered] = useState(false);
+    const [timeRange, setTimeRange] = useState(24);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     if (isLoading || !data) {
         return (
@@ -128,8 +135,78 @@ export default function AQIWidget({ data, aqiHistory, isLoading }) {
     // 1. AQI Trend Data (last 24h)
     const trendData = aqiHistory.map(h => h.main.aqi).slice(-12);
 
+    // --- Shared Data Logic for Features ---
+    const nowTs = Math.floor(Date.now() / 1000);
+    const rangeStart = nowTs - (timeRange * 60 * 60);
+    const historyDataFull = aqiHistory.filter(h => h.dt >= rangeStart && h.dt < nowTs);
+    const forecastDataFull = aqiForecast.filter(h => h.dt >= nowTs && h.dt <= (nowTs + 6 * 3600)); // Future 6h (Short Term)
+    const mergedData = [...historyDataFull, ...forecastDataFull];
+
+    const maxPoints = 48;
+    const step = Math.max(1, Math.floor(mergedData.length / maxPoints));
+    const sampled = mergedData.filter((_, i) => i % step === 0);
+    const nowIdx = sampled.findIndex(h => h.dt >= nowTs);
+
+    const generateInsight = () => {
+        if (sampled.length < 5) return null;
+        const currentHourData = sampled[nowIdx] || sampled[sampled.length - 1];
+        const historyData = sampled.slice(0, nowIdx > 0 ? nowIdx : sampled.length);
+        const forecastData = sampled.slice(nowIdx > 0 ? nowIdx : sampled.length);
+
+        // Ultra-short term analysis for the text (Next 6h)
+        const shortTermForecast = aqiForecast.filter(h => h.dt >= nowTs && h.dt <= (nowTs + 6 * 3600));
+
+        const recentHistory = historyData.slice(-6);
+        const avgRecent = recentHistory.reduce((acc, h) => acc + (h.components?.pm2_5 || 0), 0) / (recentHistory.length || 1);
+        const currentPm = currentHourData.components?.pm2_5 || 0;
+        let trend = language === 'ko' ? '안정적' : 'Stable';
+        if (currentPm > avgRecent * 1.15) trend = language === 'ko' ? '상승세' : 'Rising';
+        if (currentPm < avgRecent * 0.85) trend = language === 'ko' ? '하강세' : 'Falling';
+
+        let peakVal = 0;
+        let peakTime = null;
+        historyData.forEach(h => {
+            const v = h.components?.pm2_5 || 0;
+            if (v > peakVal) { peakVal = v; peakTime = h.dt; }
+        });
+        const peakDate = peakTime ? new Date(peakTime * 1000) : null;
+        const peakStr = peakDate ? `${peakDate.getHours()}h` : '--';
+
+        const avgForecast = shortTermForecast.reduce((acc, h) => acc + (h.components?.pm2_5 || 0), 0) / (shortTermForecast.length || 1);
+        let outlook = language === 'ko' ? '유지될' : 'is expected to remain steady';
+        if (avgForecast > currentPm * 1.1) outlook = language === 'ko' ? '악화될' : 'is likely to worsen';
+        if (avgForecast < currentPm * 0.9) outlook = language === 'ko' ? '호전될' : 'is likely to improve';
+
+        // Explicit logic for short-term 6h reliability
+        const outlookTime = language === 'ko' ? '향후 6시간 동안은' : 'for the next 6 hours';
+
+        const POLLUTANTS_KEYS = { pm2_5: 3.0, pm10: 1.0, o3: 0.8, no2: 1.5 };
+        let maxImpact = 0;
+        let driver = 'PM2.5';
+        Object.keys(POLLUTANTS_KEYS).forEach(key => {
+            const val = currentHourData.components?.[key] || 0;
+            const impact = val * POLLUTANTS_KEYS[key];
+            if (impact > maxImpact) {
+                maxImpact = impact;
+                driver = key.toUpperCase().replace('_', '.');
+            }
+        });
+
+        if (language === 'ko') {
+            return `과거 기록상 가장 오염이 심했던 시간은 **${peakStr}**였습니다. 현재 추세는 **${trend}**이며, 주 원인은 **${driver}**입니다. 예보에 따르면 ${outlookTime} 공기질이 **${outlook}** 것으로 분석됩니다.`;
+        } else {
+            return `Pollution peaked at **${peakStr}**. Current trend is **${trend}** (Driver: **${driver}**). Air quality ${outlook} ${outlookTime}.`;
+        }
+    };
+
+    const insightText = generateInsight();
+
     return (
-        <div className={`card-base h-full flex flex-col justify-between overflow-hidden relative group transition-all duration-500 p-4 ${currentStatus.bg}`}>
+        <div
+            className={`card-base h-full flex flex-col justify-between overflow-hidden relative group transition-all duration-300 p-4 ${currentStatus.bg} cursor-help hover:scale-[1.02] active:scale-[0.98] hover:shadow-2xl`}
+            onClick={() => setShowIconBoard(true)}
+        >
+            <ParticleBackground pm25={pm25} aqiLevel={calculatedAqi} />
             <div className="flex justify-between items-start mb-1">
                 <div className="text-[9px] uppercase tracking-[0.2em] opacity-40 font-black">
                     {language === "ko" ? "공기질 진단" : "AQI ANALYSIS"}
@@ -148,7 +225,7 @@ export default function AQIWidget({ data, aqiHistory, isLoading }) {
 
             <div className="flex-1 flex items-center gap-4 min-h-0">
                 <motion.div
-                    className="relative w-[100px] h-[100px] flex-shrink-0 cursor-pointer"
+                    className="relative w-[100px] h-[100px] flex-shrink-0"
                     onMouseEnter={() => setIsRingHovered(true)}
                     onMouseLeave={() => setIsRingHovered(false)}
                     animate={{ scale: isRingHovered ? 1.05 : 1 }}
@@ -172,7 +249,7 @@ export default function AQIWidget({ data, aqiHistory, isLoading }) {
                             );
                         })}
                     </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pt-1 cursor-pointer" onClick={() => setShowIconBoard(true)}>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
                         <motion.span className="text-sm font-black tracking-tighter" style={{ color: currentStatus.color }}>
                             {currentStatus.label}
                         </motion.span>
@@ -224,89 +301,87 @@ export default function AQIWidget({ data, aqiHistory, isLoading }) {
                 </div>
             </div>
 
-            <AnimatePresence>
-                {showIconBoard && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onClick={() => setShowIconBoard(false)}>
-                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a1c1e] border border-white/10 rounded-3xl p-6 max-w-[900px] w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                            {/* Modal Header with Language Toggle */}
-                            <div className="flex justify-end mb-4">
-                                <button
-                                    onClick={() => dispatch(setLanguage(language === "ko" ? "en" : "ko"))}
-                                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-[10px] font-bold uppercase tracking-wider"
-                                >
-                                    <Languages size={12} className="opacity-60" />
-                                    <span>{language === "ko" ? "EN" : "한"}</span>
-                                </button>
-                            </div>
-                            <div className="flex gap-6">
-                                {/* LEFT: Level Guide */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-[16px] font-black uppercase tracking-widest text-white mb-4">
-                                        {language === "ko" ? "🏠 등급 가이드" : "🏠 Level Guide"}
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-3 mb-4">
-                                        {Object.keys(statusMap).map((level) => {
-                                            const isCurrent = Number(level) === calculatedAqi;
-                                            return (
-                                                <div key={level} className="flex flex-col items-center gap-1 cursor-help" onMouseEnter={() => setHoveredLevel(Number(level))} onMouseLeave={() => setHoveredLevel(null)}>
-                                                    <div className={`relative w-14 h-14 flex items-center justify-center bg-white/5 rounded-2xl border transition-all ${isCurrent ? 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] ring-2 ring-amber-500/20' : 'border-white/5'}`}>
-                                                        <img src={`/images/AQI-index/icon_aqi_${level}.png`} alt={statusMap[level].label} className="w-9 h-9 object-contain" />
-                                                        {isCurrent && (
-                                                            <motion.div
-                                                                className="absolute top-0.5 right-0.5 font-black leading-none text-white text-[10px]"
-                                                                animate={{
-                                                                    scale: [1.3, 1.6, 1.3],
-                                                                    filter: [
-                                                                        "drop-shadow(0 0 2px rgba(255,255,255,0.4))",
-                                                                        "drop-shadow(0 0 12px rgba(255,255,255,0.9))",
-                                                                        "drop-shadow(0 0 2px rgba(255,255,255,0.4))"
-                                                                    ]
-                                                                }}
-                                                                transition={{
-                                                                    duration: 2,
-                                                                    repeat: Infinity,
-                                                                    ease: "easeInOut"
-                                                                }}
-                                                            >
-                                                                NOW
-                                                            </motion.div>
-                                                        )}
+            {mounted && createPortal(
+                <AnimatePresence>
+                    {showIconBoard && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onClick={() => setShowIconBoard(false)}>
+                            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a1c1e] border border-white/10 rounded-3xl p-4 max-w-[950px] w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex gap-4">
+                                    {/* LEFT: Level Guide */}
+                                    <div className="w-[300px] flex flex-col gap-3">
+                                        <div className="text-[14px] font-black uppercase tracking-widest text-white mb-1">
+                                            🏠 {language === "ko" ? "등급 가이드" : "Level Guide"}
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-y-2 gap-x-3 mb-1">
+                                            {Object.keys(statusMap).map((level) => {
+                                                const isCurrent = Number(level) === calculatedAqi;
+                                                return (
+                                                    <div key={level} className="flex flex-col items-center gap-0 cursor-help" onMouseEnter={() => setHoveredLevel(Number(level))} onMouseLeave={() => setHoveredLevel(null)}>
+                                                        <div className={`relative w-[84px] h-[84px] flex items-center justify-center bg-white/5 rounded-2xl border transition-all ${isCurrent ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] ring-1 ring-amber-500/30' : 'border-white/5 opacity-60 hover:opacity-100'}`}>
+                                                            <img src={`/images/AQI-index/icon_aqi_${level}.png`} alt={statusMap[level].label} className="w-14 h-14 object-contain" />
+                                                            {isCurrent && (
+                                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#ef4444] text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg z-10">NOW</div>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[16px] font-black tracking-tighter" style={{ color: statusMap[level].color }}>{statusMap[level].label}</span>
+                                                        <span className="text-[11px] font-black text-white/30 uppercase tracking-tighter">LV.{level}</span>
                                                     </div>
-                                                    <span className="text-[14px] font-black tracking-tighter" style={{ color: statusMap[level].color }}>{statusMap[level].label}</span>
-                                                    <span className="text-[11px] font-black text-white/60 -mt-1">LEVEL.{level}</span>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="p-3 bg-white/5 rounded-2xl border border-white/10 mt-auto">
+                                            <h5 className="text-[11px] font-black uppercase mb-1.5 tracking-[0.2em]" style={{ color: statusMap[hoveredLevel || calculatedAqi].color }}>{statusMap[hoveredLevel || calculatedAqi].label} GUIDE</h5>
+                                            <p className="text-[11px] font-medium leading-relaxed text-white/60 line-clamp-4">{statusMap[hoveredLevel || calculatedAqi].detail}</p>
+                                        </div>
                                     </div>
-                                    <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
-                                        <h5 className="text-[14px] font-black uppercase mb-1" style={{ color: statusMap[hoveredLevel || calculatedAqi].color }}>{statusMap[hoveredLevel || calculatedAqi].label} GUIDE</h5>
-                                        <p className="text-[10px] font-medium leading-relaxed text-white/70">{statusMap[hoveredLevel || calculatedAqi].detail}</p>
+
+                                    {/* Divider */}
+                                    <div className="w-px bg-white/10 self-stretch" />
+
+                                    {/* RIGHT: 24H Forecast Chart */}
+                                    <div className="flex-1 min-w-0 flex flex-col gap-3">
+                                        <div className="text-[14px] font-black uppercase tracking-widest text-white">
+                                            📊 {language === "ko" ? "24시간 오염물질 추이" : "24H Pollutant Trend"}
+                                        </div>
+
+                                        <div className="flex-1 flex flex-col gap-4">
+                                            <AQIChart
+                                                sampled={sampled}
+                                                nowTs={nowTs}
+                                                nowIdx={nowIdx}
+                                                timeRange={timeRange}
+                                                setTimeRange={setTimeRange}
+                                                language={language}
+                                                setShowIconBoard={setShowIconBoard}
+                                            />
+
+                                            {/* AI Insight Box */}
+                                            <div className="mt-auto p-4 bg-white/5 rounded-[24px] border border-white/10 relative overflow-hidden">
+                                                <div className="absolute top-4 left-0 w-1 h-5 bg-amber-500 rounded-r-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                                                <div className="text-[11px] font-black text-amber-500 uppercase mb-2 tracking-[0.2em]">{language === 'ko' ? 'AI 분석 리포트' : 'AI ANALYSIS REPORT'}</div>
+                                                <p className="text-[13px] leading-relaxed text-white/80 font-medium line-clamp-3">
+                                                    {insightText && insightText.split('**').map((part, i) =>
+                                                        i % 2 === 1 ? <strong key={i} className="text-white font-black">{part}</strong> : part
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
-                                {/* Divider */}
-                                <div className="w-px bg-white/10 self-stretch" />
-
-                                {/* RIGHT: 24H Chart */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-[16px] font-black uppercase tracking-widest text-white mb-4">
-                                        {language === "ko" ? "📊 24시간 오염물질 추이" : "📊 24H Pollutant Trend"}
-                                    </div>
-                                    <AQIChart aqiHistory={aqiHistory} language={language} />
-                                </div>
-                            </div>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 }
 
-function AQIChart({ aqiHistory, language }) {
+function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, setShowIconBoard }) {
+    const dispatch = useDispatch();
     const [hoveredIdx, setHoveredIdx] = useState(null);
     const [highlightKey, setHighlightKey] = useState(null);
-    const [timeRange, setTimeRange] = useState(24);
     const [chartKey, setChartKey] = useState(0);
 
     const timeRanges = [
@@ -323,26 +398,16 @@ function AQIChart({ aqiHistory, language }) {
         { key: 'no2', label: 'NO₂', unit: 'μg/m³', color: '#ec4899', shadow: 'rgba(236,72,153,0.4)' },
     ];
 
-    if (!aqiHistory || aqiHistory.length === 0) {
+    if (!sampled || sampled.length === 0) {
         return (
             <div className="flex items-center justify-center h-[300px] text-white/30 text-sm font-bold">
-                {language === 'ko' ? '데이터를 불러오는 중...' : 'Loading data...'}
+                {language === 'ko' ? '데이터가 없습니다' : 'No Trend Data'}
             </div>
         );
     }
 
-    // Filter data by time range
-    const now = Math.floor(Date.now() / 1000);
-    const rangeStart = now - (timeRange * 60 * 60);
-    const filtered = aqiHistory.filter(h => h.dt >= rangeStart);
-
-    // Sample to max ~36 points for chart clarity
-    const maxPoints = 36;
-    const step = Math.max(1, Math.floor(filtered.length / maxPoints));
-    const sampled = filtered.filter((_, i) => i % step === 0);
-
     const W = 380, H = 200;
-    const PAD = { top: 20, right: 15, bottom: 30, left: 35 };
+    const PAD = { top: 40, right: 15, bottom: 30, left: 35 };
     const chartW = W - PAD.left - PAD.right;
     const chartH = H - PAD.top - PAD.bottom;
 
@@ -359,41 +424,33 @@ function AQIChart({ aqiHistory, language }) {
     const getX = (i) => PAD.left + (i / Math.max(sampled.length - 1, 1)) * chartW;
     const getY = (v) => PAD.top + chartH - (v / maxVal) * chartH;
 
-    const buildPath = (key) => {
-        return sampled.map((h, i) => {
+    const buildPath = (key, type = 'all') => {
+        const points = sampled.map((h, i) => {
             const v = h.components?.[key] || 0;
-            return `${i === 0 ? 'M' : 'L'}${getX(i)},${getY(v)}`;
-        }).join(' ');
+            const isForecast = h.dt >= nowTs;
+            if (type === 'history' && isForecast) return null;
+            if (type === 'forecast' && !isForecast && i < nowIdx - 1) return null;
+            return { x: getX(i), y: getY(v) };
+        }).filter(Boolean);
+
+        if (points.length === 0) return "";
+        let d = `M${points[0].x},${points[0].y}`;
+        for (let i = 1; i < points.length; i++) { d += ` L${points[i].x},${points[i].y}`; }
+        return d;
     };
 
-    // Time labels - adapt format based on range
+    // Time labels
     const timeLabels = [];
-    const labelCount = timeRange <= 24 ? 6 : timeRange <= 72 ? 6 : 7;
+    const labelCount = 6;
     const labelStep = Math.max(1, Math.floor(sampled.length / labelCount));
     for (let i = 0; i < sampled.length; i += labelStep) {
         const d = new Date(sampled[i].dt * 1000);
-        let label;
-        if (timeRange <= 24) {
-            label = `${d.getHours().toString().padStart(2, '0')}:00`;
-        } else if (timeRange <= 72) {
-            label = `${(d.getMonth() + 1)}/${d.getDate()} ${d.getHours()}h`;
-        } else {
-            label = `${(d.getMonth() + 1)}/${d.getDate()}`;
-        }
+        let label = timeRange <= 24 ? `${d.getHours()}:00` : `${d.getMonth() + 1}/${d.getDate()}`;
         timeLabels.push({ i, label });
     }
 
-    // Y-axis ticks
-    const yTicks = [];
-    const tickCount = 4;
-    for (let t = 0; t <= tickCount; t++) {
-        yTicks.push(Math.round((maxVal / tickCount) * t));
-    }
-
+    const yTicks = [0, maxVal / 2, maxVal];
     const hoveredData = hoveredIdx !== null ? sampled[hoveredIdx] : null;
-
-    // Approx total path length for stroke animation
-    const approxPathLen = chartW + chartH;
 
     const handleRangeChange = (hours) => {
         setTimeRange(hours);
@@ -402,188 +459,169 @@ function AQIChart({ aqiHistory, language }) {
     };
 
     return (
-        <div className="flex flex-col gap-3">
-            {/* Time Range Buttons + Hovered Time */}
-            <div className="flex items-center justify-between">
-                <div className="flex gap-1.5">
+        <div className="flex flex-col gap-4">
+            <div className="relative bg-[#1a1c1e] p-6 rounded-[32px] border border-white/10 shadow-inner">
+                {/* Time Range Buttons inside Graph Card - Top Left */}
+                <div className="absolute top-4 left-4 flex gap-1 z-10">
                     {timeRanges.map(({ hours, labelKo, labelEn }) => (
-                        <motion.button
+                        <button
                             key={hours}
                             onClick={() => handleRangeChange(hours)}
-                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 border ${timeRange === hours
-                                    ? 'bg-white/15 border-white/25 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]'
-                                    : 'bg-transparent border-white/5 text-white/25 hover:text-white/50 hover:border-white/15'
+                            className={`px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all border ${timeRange === hours
+                                ? 'bg-white/20 border-white/30 text-white shadow-lg'
+                                : 'bg-white/5 border-white/5 text-white/30 hover:bg-white/10'
                                 }`}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
                         >
                             {language === 'ko' ? labelKo : labelEn}
-                        </motion.button>
+                        </button>
                     ))}
                 </div>
-                <AnimatePresence>
-                    {hoveredData && (
-                        <motion.span
-                            initial={{ opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            className="text-[10px] font-bold text-white/60"
-                        >
-                            {new Date(hoveredData.dt * 1000).toLocaleString(language === 'ko' ? 'ko-KR' : 'en-US', {
-                                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                            })}
-                        </motion.span>
-                    )}
-                </AnimatePresence>
-            </div>
 
-            {/* SVG Chart */}
-            <motion.div
-                key={chartKey}
-                className="bg-white/[0.03] rounded-2xl border border-white/5 p-3 overflow-hidden"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-            >
+                {/* Floating Action Buttons inside Graph Card - Top Right */}
+                <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                    <button
+                        onClick={() => dispatch(setLanguage(language === "ko" ? "en" : "ko"))}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all text-[10px] font-bold uppercase tracking-wider text-white/70 hover:text-white backdrop-blur-sm"
+                    >
+                        <Languages size={12} />
+                        <span>{language === "ko" ? "EN" : "한"}</span>
+                    </button>
+                    <button
+                        onClick={() => setShowIconBoard(false)}
+                        className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all text-white/70 hover:text-white backdrop-blur-sm"
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+
                 <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
-                    {/* Grid lines */}
                     {yTicks.map((tick) => (
                         <g key={tick}>
-                            <line x1={PAD.left} y1={getY(tick)} x2={W - PAD.right} y2={getY(tick)}
-                                stroke="rgba(255,255,255,0.06)" strokeDasharray="3,3" />
-                            <text x={PAD.left - 5} y={getY(tick) + 3}
-                                fill="rgba(255,255,255,0.25)" fontSize="8" fontWeight="700" textAnchor="end">
-                                {tick}
-                            </text>
+                            <line x1={PAD.left} y1={getY(tick)} x2={W - PAD.right} y2={getY(tick)} stroke="rgba(255,255,255,0.05)" strokeDasharray="3,3" />
+                            <text x={PAD.left - 8} y={getY(tick) + 3} fill="rgba(255,255,255,0.3)" fontSize="10" fontWeight="900" textAnchor="end">{Math.round(tick)}</text>
                         </g>
                     ))}
-
-                    {/* Time labels */}
                     {timeLabels.map(({ i, label }) => (
-                        <text key={i} x={getX(i)} y={H - 5}
-                            fill="rgba(255,255,255,0.25)" fontSize="7" fontWeight="700" textAnchor="middle">
-                            {label}
-                        </text>
+                        <text key={i} x={getX(i)} y={H - 5} fill="rgba(255,255,255,0.3)" fontSize="10" fontWeight="900" textAnchor="middle">{label}</text>
                     ))}
 
-                    {/* Animated Lines with highlight support */}
                     {pollutants.map((p, idx) => {
+                        const historyPath = buildPath(p.key, 'history');
+                        const forecastPath = buildPath(p.key, 'forecast');
                         const isHighlighted = highlightKey === null || highlightKey === p.key;
                         return (
-                            <motion.path
-                                key={`${p.key}-${chartKey}`}
-                                d={buildPath(p.key)}
-                                fill="none"
-                                stroke={p.color}
-                                strokeWidth={highlightKey === p.key ? 3 : 2}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                initial={{ strokeDasharray: approxPathLen, strokeDashoffset: approxPathLen }}
-                                animate={{
-                                    strokeDashoffset: 0,
-                                    opacity: isHighlighted ? 0.9 : 0.15,
-                                }}
-                                transition={{
-                                    strokeDashoffset: { duration: 1.2, delay: idx * 0.15, ease: "easeInOut" },
-                                    opacity: { duration: 0.3 },
-                                }}
-                                style={{ filter: isHighlighted ? `drop-shadow(0 0 ${highlightKey === p.key ? '8px' : '4px'} ${p.shadow})` : 'none' }}
-                            />
+                            <g key={`${p.key}-${chartKey}`}>
+                                <motion.path
+                                    d={historyPath} fill="none" stroke={p.color} strokeWidth={isHighlighted ? 3 : 1.5}
+                                    strokeLinecap="round" strokeLinejoin="round"
+                                    initial={{ pathLength: 0 }} animate={{ pathLength: 1, opacity: isHighlighted ? 0.9 : 0.15 }}
+                                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                                />
+                                {forecastPath && (
+                                    <motion.path
+                                        d={forecastPath} fill="none" stroke={p.color} strokeWidth={isHighlighted ? 2.5 : 1.5}
+                                        strokeDasharray="4,4" strokeLinecap="round" strokeLinejoin="round"
+                                        initial={{ opacity: 0 }} animate={{ opacity: isHighlighted ? 0.5 : 0.15 }}
+                                        transition={{ delay: 1, duration: 0.5 }}
+                                    />
+                                )}
+                            </g>
                         );
                     })}
 
-                    {/* Hover overlay areas */}
+                    {nowIdx !== -1 && (
+                        <line x1={getX(nowIdx)} y1={PAD.top} x2={getX(nowIdx)} y2={H - PAD.bottom} stroke="white" strokeWidth="1.5" strokeDasharray="3,3" className="opacity-30" />
+                    )}
+
                     {sampled.map((_, i) => (
-                        <rect key={i} x={getX(i) - chartW / sampled.length / 2} y={PAD.top}
-                            width={chartW / sampled.length} height={chartH}
-                            fill="transparent" className="cursor-crosshair"
-                            onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)} />
+                        <rect key={i} x={getX(i) - 5} y={PAD.top} width="10" height={chartH} fill="transparent" onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)} />
                     ))}
 
-                    {/* Hover indicator with pulsing dots */}
                     {hoveredIdx !== null && (
                         <g>
-                            <line x1={getX(hoveredIdx)} y1={PAD.top} x2={getX(hoveredIdx)} y2={PAD.top + chartH}
-                                stroke="rgba(255,255,255,0.15)" strokeDasharray="2,2" />
-                            {pollutants.map((p) => {
-                                const v = sampled[hoveredIdx]?.components?.[p.key] || 0;
-                                const isHighlighted = highlightKey === null || highlightKey === p.key;
-                                if (!isHighlighted) return null;
+                            <line x1={getX(hoveredIdx)} y1={PAD.top} x2={getX(hoveredIdx)} y2={PAD.top + chartH} stroke="white" strokeWidth="1" className="opacity-30" />
+                            {pollutants.map(p => {
+                                const v = hoveredData?.components?.[p.key] || 0;
                                 return (
-                                    <g key={p.key}>
-                                        {/* Outer pulse ring */}
-                                        <motion.circle
-                                            cx={getX(hoveredIdx)} cy={getY(v)} r="4"
-                                            fill="none" stroke={p.color} strokeWidth="1"
-                                            initial={{ r: 4, opacity: 0.6 }}
-                                            animate={{ r: 10, opacity: 0 }}
-                                            transition={{ duration: 1, repeat: Infinity, ease: "easeOut" }}
-                                        />
-                                        {/* Inner dot */}
-                                        <circle cx={getX(hoveredIdx)} cy={getY(v)} r="4"
-                                            fill={p.color} stroke="#1a1c1e" strokeWidth="2"
-                                            style={{ filter: `drop-shadow(0 0 8px ${p.shadow})` }} />
-                                        {/* Value tooltip */}
-                                        <text x={getX(hoveredIdx)} y={getY(v) - 8}
-                                            fill={p.color} fontSize="7" fontWeight="800" textAnchor="middle"
-                                            style={{ filter: `drop-shadow(0 0 3px ${p.shadow})` }}>
-                                            {Math.round(v)}
-                                        </text>
-                                    </g>
+                                    <circle key={p.key} cx={getX(hoveredIdx)} cy={getY(v)} r="4" fill={p.color} stroke="#1a1c1e" strokeWidth="2" />
                                 );
                             })}
                         </g>
                     )}
                 </svg>
-            </motion.div>
+            </div>
 
-            {/* Legend + Current Values - with hover highlight */}
-            <div className="flex gap-1.5">
-                {pollutants.map((p) => {
-                    const currentVal = hoveredData
-                        ? Math.round(hoveredData.components?.[p.key] || 0)
-                        : Math.round(sampled[sampled.length - 1]?.components?.[p.key] || 0);
-                    const isActive = highlightKey === null || highlightKey === p.key;
+            <div className="grid grid-cols-4 gap-2">
+                {pollutants.map(p => {
+                    const val = hoveredData ? (hoveredData.components?.[p.key] || 0) : (sampled[sampled.length - 1]?.components?.[p.key] || 0);
                     return (
-                        <motion.div
-                            key={p.key}
-                            className="flex-1 rounded-xl border p-2 flex flex-col items-center gap-0.5 cursor-pointer select-none"
-                            style={{
-                                backgroundColor: highlightKey === p.key ? `${p.color}10` : 'rgba(255,255,255,0.02)',
-                                borderColor: highlightKey === p.key ? `${p.color}40` : 'rgba(255,255,255,0.05)',
-                            }}
-                            onMouseEnter={() => setHighlightKey(p.key)}
-                            onMouseLeave={() => setHighlightKey(null)}
-                            whileHover={{ scale: 1.05, y: -2 }}
-                            animate={{ opacity: isActive ? 1 : 0.3 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <div className="flex items-center gap-1">
-                                <motion.div
-                                    className="w-1.5 h-1.5 rounded-full"
-                                    style={{ backgroundColor: p.color }}
-                                    animate={highlightKey === p.key ? {
-                                        boxShadow: [`0 0 4px ${p.shadow}`, `0 0 12px ${p.shadow}`, `0 0 4px ${p.shadow}`]
-                                    } : { boxShadow: `0 0 4px ${p.shadow}` }}
-                                    transition={{ duration: 1.5, repeat: Infinity }}
-                                />
-                                <span className="text-[8px] font-black uppercase tracking-wider text-white/50">{p.label}</span>
+                        <div key={p.key} className="p-3 rounded-[24px] bg-white/5 border border-white/10 flex flex-col items-center gap-1 transition-all hover:bg-white/10" onMouseEnter={() => setHighlightKey(p.key)} onMouseLeave={() => setHighlightKey(null)}>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+                                <span className="text-[8px] font-black text-white uppercase tracking-widest">{p.label}</span>
                             </div>
-                            <motion.span
-                                className="text-[16px] font-black tabular-nums"
-                                style={{ color: p.color }}
-                                key={currentVal}
-                                initial={{ scale: 1.2, opacity: 0.5 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                {currentVal}
-                            </motion.span>
-                            <span className="text-[6px] font-bold text-white/25">{p.unit}</span>
-                        </motion.div>
+                            <span className="text-[18px] font-black tabular-nums leading-none" style={{ color: p.color }}>{Math.round(val)}</span>
+                            <span className="text-[7px] font-black text-white/20 uppercase">{language === 'ko' ? 'μg/m³' : p.unit}</span>
+                        </div>
                     );
                 })}
             </div>
+        </div>
+    );
+}
+
+function ParticleBackground({ pm25, aqiLevel }) {
+    // Density increases with PM2.5 (cap at 200 particles)
+    const particleCount = Math.min(Math.floor(pm25 * 1.5) + 20, 200);
+    const particles = Array.from({ length: particleCount });
+
+    // Murkiness/Turbidity effect based on AQI
+    // Low AQI: clear, fast movement
+    // High AQI: foggy, slow/heavy movement, more yellow/gray tint
+    const isMurky = aqiLevel >= 4;
+
+    return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {/* Fog Layer for high pollution */}
+            <motion.div
+                className="absolute inset-0 z-0"
+                animate={{ opacity: isMurky ? (aqiLevel - 3) * 0.15 : 0 }}
+                style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(150,150,150,0.2))' }}
+            />
+
+            {particles.map((_, i) => (
+                <motion.div
+                    key={i}
+                    className="absolute rounded-full"
+                    initial={{
+                        x: Math.random() * 100 + "%",
+                        y: Math.random() * 100 + "%",
+                        opacity: Math.random() * 0.3 + 0.1,
+                        scale: Math.random() * 0.5 + 0.5
+                    }}
+                    animate={{
+                        y: ["-10%", "110%"],
+                        x: [
+                            (Math.random() * 100) + "%",
+                            (Math.random() * 100 + (Math.random() > 0.5 ? 10 : -10)) + "%"
+                        ]
+                    }}
+                    transition={{
+                        // Heavier air moves slower? Or chaotic? 
+                        // Let's make it more chaotic but "heavy" (slower vertical, more horizontal jitter) if polluted
+                        duration: Math.random() * 20 + (isMurky ? 20 : 10),
+                        repeat: Infinity,
+                        ease: "linear",
+                        delay: Math.random() * -30
+                    }}
+                    style={{
+                        width: Math.random() * 3 + 1 + "px",
+                        height: Math.random() * 3 + 1 + "px",
+                        backgroundColor: isMurky ? '#a8a29e' : '#ffffff', // Grayish if murky, white if clear
+                        filter: isMurky ? "blur(1.5px)" : "blur(0.5px)"
+                    }}
+                />
+            ))}
         </div>
     );
 }

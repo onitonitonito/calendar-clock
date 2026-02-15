@@ -12,7 +12,7 @@ import AlarmSetting from "@/components/clock/AlarmSetting";
 import { useWeather } from "@/hooks/useWeather";
 
 export default function Dashboard() {
-  const { weather, aqi, aqiHistory, isLoading } = useWeather();
+  const { weather, aqi, aqiHistory, aqiForecast, isLoading } = useWeather();
   const [mounted, setMounted] = useState(false);
   const language = useSelector((state) => state.ui.language);
 
@@ -65,7 +65,7 @@ export default function Dashboard() {
           {/* Bottom Area: Weather & AQI */}
           <div className="grid grid-cols-2 gap-6 h-[200px]">
             <WeatherWidget data={weather} isLoading={isLoading} />
-            <AQIWidget data={aqi} aqiHistory={aqiHistory} isLoading={isLoading} />
+            <AQIWidget data={aqi} aqiHistory={aqiHistory} aqiForecast={aqiForecast} isLoading={isLoading} />
           </div>
         </div>
 
