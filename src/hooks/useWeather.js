@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useGetWeatherQuery, useGetAirQualityQuery } from "@/store/services/weatherApi";
+import { useGetWeatherQuery, useGetAirQualityQuery, useGetAirQualityHistoryQuery, useGetForecastQuery } from "@/store/services/weatherApi";
 
 export function useWeather() {
     const [coords, setCoords] = useState({ lat: 37.2636, lon: 127.0286 }); // Default: Suwon
@@ -17,12 +17,22 @@ export function useWeather() {
         }
     }, []);
 
+    const now = Math.floor(Date.now() / 1000);
+    const last24h = now - (24 * 60 * 60);
+
     const { data: weather, isLoading: weatherLoading } = useGetWeatherQuery(coords);
     const { data: aqi, isLoading: aqiLoading } = useGetAirQualityQuery(coords);
+    const { data: aqiHistory, isLoading: historyLoading } = useGetAirQualityHistoryQuery({ ...coords, start: last24h, end: now });
+    const { data: forecast, isLoading: forecastLoading } = useGetForecastQuery(coords);
 
     return {
-        weather,
+        weather: {
+            ...weather,
+            pop: forecast?.list?.[0]?.pop ? Math.round(forecast.list[0].pop * 100) : 0,
+            forecastList: forecast?.list || []
+        },
         aqi: aqi?.list?.[0],
-        isLoading: weatherLoading || aqiLoading,
+        aqiHistory: aqiHistory?.list || [],
+        isLoading: weatherLoading || aqiLoading || historyLoading || forecastLoading,
     };
 }
