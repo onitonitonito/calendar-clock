@@ -13,8 +13,40 @@ export default function AQIWidget({ data, aqiHistory, aqiForecast, isLoading }) 
     const [showIconBoard, setShowIconBoard] = useState(false);
     const [hoveredLevel, setHoveredLevel] = useState(null);
     const [isRingHovered, setIsRingHovered] = useState(false);
-    const [timeRange, setTimeRange] = useState(24);
+    const [timeRange, setTimeRange] = useState(168);
     const [mounted, setMounted] = useState(false);
+    const [highlightKey, setHighlightKey] = useState(null);
+
+    const pollutantInfo = {
+        pm2_5: {
+            title: language === 'ko' ? '초미세먼지 (PM2.5)' : 'Ultra Fine Dust (PM2.5)',
+            desc: language === 'ko'
+                ? '초미세먼지 - 머리카락 굵기의 1/30 (2.5µm) 보다 작은 입자로, 폐포 깊숙이 침투해 혈관까지 도달할 수 있는 가장 치명적인 오염물질입니다. 호흡기 및 심혈관 질환의 직접적인 원인이 됩니다.'
+                : 'Particles less than 2.5µm. Can penetrate deep into lungs and enter the bloodstream, posing severe risks to respiratory and cardiovascular health.',
+            color: '#10b981'
+        },
+        pm10: {
+            title: language === 'ko' ? '미세먼지 (PM10)' : 'Fine Dust (PM10)',
+            desc: language === 'ko'
+                ? '미세먼지 - 대기 중에 부유하는 미세 입자 (10µm) 이하로, 코나 상기도에서 걸러지지 않고 기관지까지 내려가 염증과 비염, 천식을 유발하거나 악화 시킬 수 있습니다.'
+                : 'Inhalable particles 10µm and smaller. Can settle in the airway and lungs, triggering or worsening asthma and respiratory inflammation.',
+            color: '#0ea5e9'
+        },
+        o3: {
+            title: language === 'ko' ? '오존 (O3)' : 'Ozone (O3)',
+            desc: language === 'ko'
+                ? '오존 - 강력한 산화력을 가진 기체로, 눈과 목 점막을 자극하여 기침과 호흡 곤란을 일으킵니다. 주로 여름철 강한 햇빛 아래, 대기 중 화학 반응으로 생성됩니다. 오존경보가 발생되면 외출을 자제하시는 것이 좋습니다.'
+                : 'A reactive gas that irritates eyes and throat. Primarily formed by chemical reactions between sunlight and air pollutants during hot weather.',
+            color: '#8b5cf6'
+        },
+        no2: {
+            title: language === 'ko' ? '이산화질소 (NO2)' : 'Nitrogen Dioxide (NO2)',
+            desc: language === 'ko'
+                ? '질소 산화물 - 주로 자동차 배기가스나 석탄연료 연소 시 발생하며, 호흡기 점막을 자극해 기관지 천식과 폐 기능 저하를 유발하는 독성 기체입니다.'
+                : 'A toxic gas primarily from vehicle exhaust. Irritates respiratory membranes, leading to bronchitis, asthma, and reduced lung function.',
+            color: '#ec4899'
+        }
+    };
 
     useEffect(() => {
         setMounted(true);
@@ -49,10 +81,10 @@ export default function AQIWidget({ data, aqiHistory, aqiForecast, isLoading }) 
     const calculatedAqi = getAqi9Level(pm25, o3);
     const visualMax = 180;
     const factors = [
-        { id: 'pm2_5', label: "PM2.5", val: pm25, scale: 1.2, r: 42, w: 6, color: "#10b981", shadow: "rgba(16,185,129,0.3)" },
-        { id: 'pm10', label: "PM10", val: Math.round(components.pm10), scale: 1.4, r: 34, w: 6, color: "#0ea5e9", shadow: "rgba(14,165,233,0.3)" },
+        { id: 'pm2_5', label: language === "ko" ? "초미세먼지" : "PM2.5", val: pm25, scale: 1.2, r: 42, w: 6, color: "#10b981", shadow: "rgba(16,185,129,0.3)" },
+        { id: 'pm10', label: language === "ko" ? "미세먼지" : "PM10", val: Math.round(components.pm10), scale: 1.4, r: 34, w: 6, color: "#0ea5e9", shadow: "rgba(14,165,233,0.3)" },
         { id: 'o3', label: language === "ko" ? "오존" : "O3", val: o3, scale: 1.0, r: 26, w: 6, color: "#8b5cf6", shadow: "rgba(139,92,246,0.3)" },
-        { id: 'no2', label: "NO2", val: Math.round(components.no2 || 0), scale: 40.0, r: 18, w: 6, color: "#ec4899", shadow: "rgba(236,72,153,0.3)" },
+        { id: 'no2', label: language === "ko" ? "질산가스" : "NO2", val: Math.round(components.no2 || 0), scale: 40.0, r: 18, w: 6, color: "#ec4899", shadow: "rgba(236,72,153,0.3)" },
     ];
 
     const statusMap = {
@@ -317,14 +349,14 @@ export default function AQIWidget({ data, aqiHistory, aqiForecast, isLoading }) 
                                                 const isCurrent = Number(level) === calculatedAqi;
                                                 return (
                                                     <div key={level} className="flex flex-col items-center gap-0 cursor-help" onMouseEnter={() => setHoveredLevel(Number(level))} onMouseLeave={() => setHoveredLevel(null)}>
-                                                        <div className={`relative w-[84px] h-[84px] flex items-center justify-center bg-white/5 rounded-2xl border transition-all ${isCurrent ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] ring-1 ring-amber-500/30' : 'border-white/5 opacity-60 hover:opacity-100'}`}>
+                                                        <div className={`relative w-[80px] h-[80px] flex items-center justify-center bg-white/5 rounded-2xl border transition-all ${isCurrent ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] ring-1 ring-amber-500/30' : 'border-white/5 opacity-60 hover:opacity-100'}`}>
                                                             <img src={`/images/AQI-index/icon_aqi_${level}.png`} alt={statusMap[level].label} className="w-14 h-14 object-contain" />
                                                             {isCurrent && (
                                                                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#ef4444] text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg z-10">NOW</div>
                                                             )}
                                                         </div>
-                                                        <span className="text-[16px] font-black tracking-tighter" style={{ color: statusMap[level].color }}>{statusMap[level].label}</span>
-                                                        <span className="text-[11px] font-black text-white/30 uppercase tracking-tighter">LV.{level}</span>
+                                                        <span className="text-[16px] font-black tracking-tighter leading-none -mt-1" style={{ color: statusMap[level].color }}>{statusMap[level].label}</span>
+                                                        <span className="text-[14px] font-black text-white/90 tracking-tighter leading-none mt-1">LEVEL-{level}</span>
                                                     </div>
                                                 );
                                             })}
@@ -353,17 +385,47 @@ export default function AQIWidget({ data, aqiHistory, aqiForecast, isLoading }) 
                                                 setTimeRange={setTimeRange}
                                                 language={language}
                                                 setShowIconBoard={setShowIconBoard}
+                                                highlightKey={highlightKey}
+                                                setHighlightKey={setHighlightKey}
                                             />
 
-                                            {/* AI Insight Box */}
-                                            <div className="mt-auto p-4 bg-white/5 rounded-[24px] border border-white/10 relative overflow-hidden">
-                                                <div className="absolute top-4 left-0 w-1 h-5 bg-amber-500 rounded-r-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-                                                <div className="text-[11px] font-black text-amber-500 uppercase mb-2 tracking-[0.2em]">{language === 'ko' ? 'AI 분석 리포트' : 'AI ANALYSIS REPORT'}</div>
-                                                <p className="text-[13px] leading-relaxed text-white/80 font-medium line-clamp-3">
-                                                    {insightText && insightText.split('**').map((part, i) =>
-                                                        i % 2 === 1 ? <strong key={i} className="text-white font-black">{part}</strong> : part
+                                            {/* AI Insight / Pollutant Info Box */}
+                                            <div className="mt-auto p-3 bg-white/5 rounded-[20px] border border-white/10 relative overflow-hidden min-h-[100px] flex flex-col justify-center">
+                                                <AnimatePresence mode="wait">
+                                                    {highlightKey ? (
+                                                        <motion.div
+                                                            key="pollutant-info"
+                                                            initial={{ opacity: 0, x: 20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            exit={{ opacity: 0, x: -20 }}
+                                                            transition={{ duration: 0.2 }}
+                                                        >
+                                                            <div className="absolute top-3 left-0 w-1 h-4 rounded-r-full shadow-[0_0_10px_currentColor]" style={{ backgroundColor: pollutantInfo[highlightKey].color, color: pollutantInfo[highlightKey].color }} />
+                                                            <div className="text-[10px] font-black uppercase mb-1 tracking-[0.2em]" style={{ color: pollutantInfo[highlightKey].color }}>
+                                                                {pollutantInfo[highlightKey].title}
+                                                            </div>
+                                                            <p className="text-[12px] leading-relaxed text-white/90 font-medium italic">
+                                                                "{pollutantInfo[highlightKey].desc}"
+                                                            </p>
+                                                        </motion.div>
+                                                    ) : (
+                                                        <motion.div
+                                                            key="ai-report"
+                                                            initial={{ opacity: 0, x: 20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            exit={{ opacity: 0, x: -20 }}
+                                                            transition={{ duration: 0.2 }}
+                                                        >
+                                                            <div className="absolute top-3 left-0 w-1 h-4 bg-amber-500 rounded-r-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                                                            <div className="text-[10px] font-black text-amber-500 uppercase mb-1 tracking-[0.2em]">{language === 'ko' ? 'AI 분석 리포트' : 'AI ANALYSIS REPORT'}</div>
+                                                            <p className="text-[12px] leading-relaxed text-white/80 font-medium line-clamp-3">
+                                                                {insightText && insightText.split('**').map((part, i) =>
+                                                                    i % 2 === 1 ? <strong key={i} className="text-white font-black">{part}</strong> : part
+                                                                )}
+                                                            </p>
+                                                        </motion.div>
                                                     )}
-                                                </p>
+                                                </AnimatePresence>
                                             </div>
                                         </div>
                                     </div>
@@ -378,10 +440,9 @@ export default function AQIWidget({ data, aqiHistory, aqiForecast, isLoading }) 
     );
 }
 
-function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, setShowIconBoard }) {
+function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, setShowIconBoard, highlightKey, setHighlightKey }) {
     const dispatch = useDispatch();
     const [hoveredIdx, setHoveredIdx] = useState(null);
-    const [highlightKey, setHighlightKey] = useState(null);
     const [chartKey, setChartKey] = useState(0);
 
     const timeRanges = [
@@ -406,7 +467,7 @@ function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, s
         );
     }
 
-    const W = 380, H = 200;
+    const W = 380, H = 185;
     const PAD = { top: 40, right: 15, bottom: 30, left: 35 };
     const chartW = W - PAD.left - PAD.right;
     const chartH = H - PAD.top - PAD.bottom;
@@ -439,6 +500,15 @@ function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, s
         return d;
     };
 
+    const buildAreaPath = (key) => {
+        const points = sampled.map((h, i) => ({ x: getX(i), y: getY(h.components?.[key] || 0) }));
+        if (points.length === 0) return "";
+        let d = `M${points[0].x},${PAD.top + chartH}`;
+        points.forEach(p => { d += ` L${p.x},${p.y}`; });
+        d += ` L${points[points.length - 1].x},${PAD.top + chartH} Z`;
+        return d;
+    };
+
     // Time labels
     const timeLabels = [];
     const labelCount = 6;
@@ -459,10 +529,10 @@ function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, s
     };
 
     return (
-        <div className="flex flex-col gap-4">
-            <div className="relative bg-[#1a1c1e] p-6 rounded-[32px] border border-white/10 shadow-inner">
+        <div className="flex flex-col gap-3">
+            <div className="relative bg-[#1a1c1e] p-4 rounded-[28px] border border-white/10 shadow-inner">
                 {/* Time Range Buttons inside Graph Card - Top Left */}
-                <div className="absolute top-4 left-4 flex gap-1 z-10">
+                <div className="absolute top-3 left-4 flex gap-1 z-10">
                     {timeRanges.map(({ hours, labelKo, labelEn }) => (
                         <button
                             key={hours}
@@ -478,7 +548,7 @@ function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, s
                 </div>
 
                 {/* Floating Action Buttons inside Graph Card - Top Right */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                <div className="absolute top-3 right-4 flex items-center gap-2 z-10">
                     <button
                         onClick={() => dispatch(setLanguage(language === "ko" ? "en" : "ko"))}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all text-[10px] font-bold uppercase tracking-wider text-white/70 hover:text-white backdrop-blur-sm"
@@ -495,6 +565,22 @@ function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, s
                 </div>
 
                 <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+                    <defs>
+                        {pollutants.map(p => (
+                            <linearGradient key={`grad-${p.key}`} id={`grad-${p.key}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={p.color} stopOpacity="0.3" />
+                                <stop offset="100%" stopColor={p.color} stopOpacity="0" />
+                            </linearGradient>
+                        ))}
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                            <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+
                     {yTicks.map((tick) => (
                         <g key={tick}>
                             <line x1={PAD.left} y1={getY(tick)} x2={W - PAD.right} y2={getY(tick)} stroke="rgba(255,255,255,0.05)" strokeDasharray="3,3" />
@@ -508,18 +594,29 @@ function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, s
                     {pollutants.map((p, idx) => {
                         const historyPath = buildPath(p.key, 'history');
                         const forecastPath = buildPath(p.key, 'forecast');
+                        const areaPath = buildAreaPath(p.key);
                         const isHighlighted = highlightKey === null || highlightKey === p.key;
+
                         return (
                             <g key={`${p.key}-${chartKey}`}>
+                                <AnimatePresence>
+                                    {highlightKey === p.key && (
+                                        <motion.path
+                                            d={areaPath} fill={`url(#grad-${p.key})`}
+                                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                        />
+                                    )}
+                                </AnimatePresence>
                                 <motion.path
-                                    d={historyPath} fill="none" stroke={p.color} strokeWidth={isHighlighted ? 3 : 1.5}
+                                    d={historyPath} fill="none" stroke={p.color} strokeWidth={isHighlighted ? 2 : 1}
                                     strokeLinecap="round" strokeLinejoin="round"
                                     initial={{ pathLength: 0 }} animate={{ pathLength: 1, opacity: isHighlighted ? 0.9 : 0.15 }}
                                     transition={{ duration: 1.5, ease: "easeInOut" }}
+                                    style={{ filter: isHighlighted && highlightKey ? 'url(#glow)' : 'none' }}
                                 />
                                 {forecastPath && (
                                     <motion.path
-                                        d={forecastPath} fill="none" stroke={p.color} strokeWidth={isHighlighted ? 2.5 : 1.5}
+                                        d={forecastPath} fill="none" stroke={p.color} strokeWidth={isHighlighted ? 1.8 : 1}
                                         strokeDasharray="4,4" strokeLinecap="round" strokeLinejoin="round"
                                         initial={{ opacity: 0 }} animate={{ opacity: isHighlighted ? 0.5 : 0.15 }}
                                         transition={{ delay: 1, duration: 0.5 }}
@@ -539,11 +636,34 @@ function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, s
 
                     {hoveredIdx !== null && (
                         <g>
-                            <line x1={getX(hoveredIdx)} y1={PAD.top} x2={getX(hoveredIdx)} y2={PAD.top + chartH} stroke="white" strokeWidth="1" className="opacity-30" />
+                            {/* Tracking Ruler */}
+                            <line x1={getX(hoveredIdx)} y1={PAD.top} x2={getX(hoveredIdx)} y2={PAD.top + chartH} stroke="white" strokeWidth="1" className="opacity-20" />
+
+                            {/* Floating Time Label */}
+                            <g transform={`translate(${getX(hoveredIdx)}, ${PAD.top - 15})`}>
+                                <rect x="-35" y="-12" width="70" height="18" rx="9" fill="white" />
+                                <text textAnchor="middle" y="1" fontSize="9" fontWeight="900" fill="#1a1c1e">
+                                    {new Date(hoveredData.dt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                </text>
+                            </g>
+
                             {pollutants.map(p => {
                                 const v = hoveredData?.components?.[p.key] || 0;
+                                const isTarget = highlightKey === p.key;
+                                if (highlightKey && !isTarget) return null;
+
                                 return (
-                                    <circle key={p.key} cx={getX(hoveredIdx)} cy={getY(v)} r="4" fill={p.color} stroke="#1a1c1e" strokeWidth="2" />
+                                    <g key={p.key}>
+                                        <circle cx={getX(hoveredIdx)} cy={getY(v)} r={isTarget ? 5 : 4} fill={p.color} stroke="#1a1c1e" strokeWidth="2" />
+                                        {(isTarget || !highlightKey) && (
+                                            <g transform={`translate(${getX(hoveredIdx) + 8}, ${getY(v)})`}>
+                                                <rect x="-2" y="-7" width="20" height="12" rx="4" fill="rgba(0,0,0,0.6)" className="backdrop-blur-[2px]" />
+                                                <text y="2.5" x="8" textAnchor="middle" fill="white" fontSize="9" fontWeight="900" className="drop-shadow-sm">
+                                                    {Math.round(v)}
+                                                </text>
+                                            </g>
+                                        )}
+                                    </g>
                                 );
                             })}
                         </g>
@@ -555,13 +675,15 @@ function AQIChart({ sampled, nowTs, nowIdx, timeRange, setTimeRange, language, s
                 {pollutants.map(p => {
                     const val = hoveredData ? (hoveredData.components?.[p.key] || 0) : (sampled[sampled.length - 1]?.components?.[p.key] || 0);
                     return (
-                        <div key={p.key} className="p-3 rounded-[24px] bg-white/5 border border-white/10 flex flex-col items-center gap-1 transition-all hover:bg-white/10" onMouseEnter={() => setHighlightKey(p.key)} onMouseLeave={() => setHighlightKey(null)}>
+                        <div key={p.key} className="p-2 rounded-[18px] bg-white/5 border border-white/10 flex flex-col items-center gap-1 transition-all hover:bg-white/10" onMouseEnter={() => setHighlightKey(p.key)} onMouseLeave={() => setHighlightKey(null)}>
                             <div className="flex items-center gap-1.5">
                                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
-                                <span className="text-[8px] font-black text-white uppercase tracking-widest">{p.label}</span>
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest">{p.label}</span>
                             </div>
-                            <span className="text-[18px] font-black tabular-nums leading-none" style={{ color: p.color }}>{Math.round(val)}</span>
-                            <span className="text-[7px] font-black text-white/20 uppercase">{language === 'ko' ? 'μg/m³' : p.unit}</span>
+                            <div className="flex items-baseline gap-0.5">
+                                <span className="text-[20px] font-black tabular-nums leading-none" style={{ color: p.color }}>{Math.round(val)}</span>
+                                <span className="text-[8px] font-black text-white/30">{language === 'ko' ? 'μg/m³' : p.unit}</span>
+                            </div>
                         </div>
                     );
                 })}
